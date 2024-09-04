@@ -14,7 +14,6 @@ const WalletMultiButtonDynamic = dynamic(async () => (await import("@solana/wall
 
 const HomePage = () => {
   const [tokens, setTokens] = useState<Token[]>([]);
-  const [selectedToken, setSelectedToken] = useState<Token | null>(null);
 
   const { publicKey } = useWallet();
   const { connection } = useConnection();
