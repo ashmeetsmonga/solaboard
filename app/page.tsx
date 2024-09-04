@@ -6,39 +6,42 @@ import { AccountLayout, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import { Token } from "@/types";
 import { handleTokenMetadata } from "@/utils";
 import toast from "react-hot-toast";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import dynamic from "next/dynamic";
 import Modal from "@/components/Modal";
 
 const WalletMultiButtonDynamic = dynamic(async () => (await import("@solana/wallet-adapter-react-ui")).WalletMultiButton, { ssr: false });
 
-const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
-
-const page = () => {
+const HomePage = () => {
   const [tokens, setTokens] = useState<Token[]>([]);
-  const { publicKey } = useWallet();
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
+
+  const { publicKey } = useWallet();
+  const { connection } = useConnection();
 
   const getTokenAccounts = async () => {
     if (!publicKey) return;
     setTokens([]);
     const toastId = toast.loading("Loading Tokens");
-    const tokenAccounts = await connection.getTokenAccountsByOwner(publicKey, { programId: TOKEN_2022_PROGRAM_ID });
-    const tokens = tokenAccounts.value.map((tokenAccountInfo) => {
-      const accountData = AccountLayout.decode(tokenAccountInfo.account.data);
-      return {
-        tokenAddress: new PublicKey(accountData.mint).toBase58(),
-        amount: accountData.amount.toString(),
-      };
-    });
-    const tokenList: Token[] = [];
-    tokens.map(async (token) => {
-      const newToken: Token = { name: "Unknown Token", symbol: "UKT", hasImage: false, image: "", amount: parseInt(token.amount) / LAMPORTS_PER_SOL, tokenAddress: token.tokenAddress };
-      tokenList.push(newToken);
-    });
     try {
+      const balance = await connection.getBalance(publicKey);
+      const tokenAccounts = await connection.getTokenAccountsByOwner(publicKey, { programId: TOKEN_2022_PROGRAM_ID });
+      const tokens = tokenAccounts.value.map((tokenAccountInfo) => {
+        const accountData = AccountLayout.decode(tokenAccountInfo.account.data);
+        return {
+          tokenAddress: new PublicKey(accountData.mint).toBase58(),
+          amount: accountData.amount.toString(),
+        };
+      });
+      const tokenList: Token[] = [];
+      tokens.map(async (token) => {
+        const newToken: Token = { name: "Unknown Token", symbol: "UKT", hasImage: false, image: "", amount: parseInt(token.amount) / LAMPORTS_PER_SOL, tokenAddress: token.tokenAddress };
+        tokenList.push(newToken);
+      });
+
       const tokensWithMetadata = await handleTokenMetadata(tokenList, connection);
-      setTokens(tokensWithMetadata);
+      const solanaToken: Token = { name: "Solana", amount: balance / LAMPORTS_PER_SOL, hasImage: true, image: "/images/solana-logo.png", symbol: "SOL", tokenAddress: "" };
+      setTokens([solanaToken, ...tokensWithMetadata]);
       toast.success("Tokens fetched successfully", { id: toastId });
     } catch (e) {
       console.log(e);
@@ -54,8 +57,8 @@ const page = () => {
   return (
     <main className="w-screen min-h-screen flex flex-col items-center p-10 bg-[#f8f7f9]">
       <div className="w-full flex flex-col items-center lg:mt-20">
-        <h1 className="text-7xl lg:text-8xl text-gray-950 font-extrabold tracking-tight">SolaSend</h1>
-        <p className="text-2xl lg:text-4xl text-center">Effortless Token Transfers, Anytime</p>
+        <h1 className="text-7xl lg:text-8xl text-gray-950 font-extrabold tracking-tight">SolaBoard</h1>
+        <p className="text-2xl lg:text-4xl text-center">A Dashboard for interacting with your solana tokens</p>
         <div className="mt-5">
           <WalletMultiButtonDynamic />
         </div>
@@ -88,4 +91,4 @@ const page = () => {
   );
 };
 
-export default page;
+export default HomePage;
